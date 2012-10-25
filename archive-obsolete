@@ -1,0 +1,64 @@
+#!/bin/bash
+#
+# Copyright © 2004, 2005, 2006 Guillem Jover <guillem@debian.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+# Import library
+
+. archive-lib
+
+cd $cache_dir
+
+log obsolete "-> Generating obsolete packages lists ..."
+for arch in $(get_archive_arches); do
+  log obsolete " -> Generating obsolete packages list ... [$arch]"
+  cat changes_$arch.list | changes_obsolete | uniq > \
+    changes_${arch}_obs.list
+  sort changes_$arch.list changes_${arch}_obs.list | uniq -u > \
+    changes_${arch}_new.list
+  sort changes_${arch}_new.list changes_${arch}_obs.list > \
+    changes_${arch}_full.list
+
+  if cmp -s changes_$arch.list changes_${arch}_full.list; then
+    log obsolete "  -> Ok: Obsolete packages list [$arch], proceeding ..."
+    cat changes_${arch}_obs.list | while read package suite arch version changes_file; do
+      files=`changes_strip < $changes_file | fetch_files`
+      binfiles=`echo "$files" | grep 'deb$'`
+      orig_dir=`dirname $changes_file`
+      dest_dir=$obsolete_dir/`date -I`/$package/
+
+      log obsolete "  -> Obsoleting: $package-$version ($suite) [$arch]"
+      log obsolete "   -> Changes file: ${changes_file##*/}"
+      log obsolete "   -> Binary files: $files"
+
+      (
+      cd $orig_dir
+      mkdir -p $dest_dir
+      mv -f $changes_file "$dest_dir" 2>/dev/null
+      mv $files "$dest_dir" || log obsolete "   -> Error: Obsoleting package."
+      )
+     done
+    log obsolete "  -> Updating obsolete packages list [$arch] ..."
+    cp -f changes_${arch}_new.list changes_${arch}.list
+  else
+    log obsolete "  -> Error: Obsolete packages list [$arch], manual intervention needed."
+  fi
+done
+log obsolete "-> Generating obsolete dir file list ..."
+cd $obsolete_dir
+ls -lR | gzip -9 -c > ls-lR.gz
+log obsolete "-> Done."

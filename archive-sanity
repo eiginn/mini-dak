@@ -1,0 +1,56 @@
+#!/bin/bash
+#
+# Copyright © 2003, 2004, 2005 Guillem Jover <guillem@debian.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+. archive-lib
+
+if [ "$1" = "--fix" ]; then
+  FIX=yes
+else
+  FIX=no
+fi
+
+# Main
+
+echo "-> Doing sanity check over the archive"
+
+if [ $FIX = yes ]; then
+  echo " -> Regenerating missing .archive files"
+  for changes in `find $(get_pool_dirs) $accepted_dir -name '*.changes'`; do
+    archive=${changes%changes}archive
+    changes_strip < $changes > $archive
+  done
+fi
+
+cd $cache_dir
+
+echo " -> Finding duped packages"
+for p in Packages.*; do
+  echo "  -> Packages duped on ${p#Packages.}"
+  grep '^Package: ' $p | sort | uniq -d
+done
+
+echo " -> Finding empty packages fields"
+for p in Packages.*; do
+  echo "  -> Packages with empty field on ${p#Packages.}"
+  if grep '^Depends: $' $p >& /dev/null; then
+    echo "Empty field(s) found."
+  fi
+done
+
+cd - >/dev/null

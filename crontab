@@ -1,0 +1,17 @@
+# /etc/cron.d/mini-dak: crontab fragment for mini-dak
+#
+
+BIN=/srv/ftp.example.org/bin
+MAILTO=ftpmaster
+
+# Run queue every 15 minutes
+0-59/15 * * * * root cd $BIN; ./archive-queue
+
+# Run install every 6 hours
+0 0-23/6 * * * ftpmaster cd $BIN; ./archive-install
+
+# Run snapshot once a week (on thursdays at 3:00)
+0 3 * * 4 ftpmaster cd $BIN; ./archive-snapshot
+
+# Run cruft cleaner once a day at 4:05
+5 4 * * * root cd $BIN; ./archive-clean

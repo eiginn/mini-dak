@@ -1,0 +1,86 @@
+#!/bin/bash
+#
+# Copyright © 2003-2007 Guillem Jover <guillem@debian.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+#
+# Requires: apt-utils
+#
+
+# Import library
+
+. archive-lib
+
+# file output
+
+pool_install ()
+{
+  local archive_file=$1
+  local package=`fetch_source_name < $archive_file`
+  local arch=`fetch_single_arch < $archive_file`
+  local dest_dir=`poolize_arch_name $package $arch`
+
+  if [ ! -d "$dest_dir" ]; then
+    mkdir -p $dest_dir
+  fi
+
+  if archive_move $archive_file $dest_dir; then
+    log install "install_success ${archive_file##*/}"
+    return 0
+  else
+    script_error "$?"
+    log install "install_failed ${archive_file##*/}"
+    return 1
+  fi
+}
+
+# message output
+
+script_error ()
+{
+  # FIXME: message should be nicer than that
+  log install "$1" | echo mail -s "Error in `basename $0`" $archive_maint
+}
+
+#
+# Main
+#
+
+cd $accepted_dir
+
+shopt -s nullglob
+
+for archive_file in *.archive; do
+    pool_install "$archive_file"
+    rm $archive_file
+
+    INSTALLED=yes
+done
+
+cd - >/dev/null
+
+if [ "$INSTALLED" = "yes" ]; then
+  ./archive-lists
+  ./archive-changes-lists
+  ./archive-obsolete
+  ./archive-mirror-arch-all
+  ./archive-reindex-files
+  ./archive-reindex-meta
+  ./archive-mirror-push
+  ./archive-quinn
+  ./archive-stats
+fi

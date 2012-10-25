@@ -1,0 +1,82 @@
+#!/bin/bash
+#
+# Copyright © 1997, 1998 James Troup <james@nocrew.org>
+# Copyright © 2003, 2004, 2005 Guillem Jover <guillem@debian.org>
+#
+# Functions sort_by_priority and sort_by_section ripped from quinn-diff
+# package's example scripts.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+#
+# Requires: wget bzip2 quinn-diff
+#
+
+. archive-lib
+
+sort_by_priority()
+{
+  local tmpfile=$(mktemp /tmp/$(basename $0).XXXXXX)
+  trap 'rm -f $tmpfile ; exit 1' 1 2 3 13 15
+
+  quinn-diff "$@" > $tmpfile 2> /dev/null
+
+  egrep "\[required\:" $tmpfile | sort
+  egrep "\[important\:" $tmpfile | sort
+  egrep "\[standard\:" $tmpfile | sort
+  egrep "\[optional\:" $tmpfile | sort
+  egrep "\[extra\:" $tmpfile | sort
+  egrep -v "\[extra\:|\[optional\:|\[standard\:|\[important\:|\[required\:" $tmpfile | sort
+
+  rm -f $tmpfile
+}
+
+sort_by_section()
+{
+  local tmpfile=$(mktemp /tmp/$(basename $0).XXXXXX)
+  trap 'rm -f $tmpfile ; exit 1' 1 2 3 13 15
+
+  quinn-diff "$@" > $tmpfile 2> /dev/null
+
+  local sections="base admin comm devel doc editors electronics embedded games gnome graphics hamradio interpreters kde libs libdevel mail math misc net news oldlibs otherosfs perl python shells sound tex text utils web x11"
+
+  for i in $sections; do
+    egrep "$i\/.*\[required\:" $tmpfile | sort
+    egrep "$i\/.*\[important\:" $tmpfile | sort
+    egrep "$i\/.*\[standard\:" $tmpfile | sort
+    egrep "$i\/.*\[optional\:" $tmpfile | sort
+    egrep "$i\/.*\[extra\:" $tmpfile | sort
+  done
+  egrep -v "\[extra\:|\[optional\:|\[standard\:|\[important\:|\[required\:" $tmpfile | sort
+
+  rm -f $tmpfile
+}
+
+cd $cache_dir
+
+echo_time "-> Generating quinn-diff stats ..."
+
+for arch in $(get_suite_arches unreleased); do
+  if [ $arch != source ]; then
+    echo_time " -> Generating quinn-diff stats for [$arch] ..."
+    # FIXME: Move this to the setup phase.
+    mkdir -p $quinn_dir/unstable
+    sort_by_priority -A$arch -p Packages.$arch -i > $quinn_dir/unstable/by_priority-$arch.txt
+    sort_by_section -A$arch -p Packages.$arch -i > $quinn_dir/unstable/by_section-$arch.txt
+  fi
+done
+
+echo_time "-> Done."
