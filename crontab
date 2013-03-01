@@ -4,8 +4,8 @@
 BIN=/srv/ftp.example.org/bin
 MAILTO=ftpmaster
 
-# Run queue every 15 minutes
-0-59/15 * * * * root cd $BIN; ./archive-queue
+# Run queue every 5 minutes
+0-59/5 * * * * root cd $BIN; ./archive-queue
 
 # Run install every 6 hours
 0 0-23/6 * * * ftpmaster cd $BIN; ./archive-install
